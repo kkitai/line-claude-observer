@@ -1,6 +1,6 @@
 module github.com/kkitai/line-claude-observer
 
-go 1.26.2
+go 1.23
 
 require (
 	github.com/joho/godotenv v1.5.1
