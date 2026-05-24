@@ -104,7 +104,7 @@ func TestGetEnvOrDefault(t *testing.T) {
 	})
 
 	t.Run("returns default when not set", func(t *testing.T) {
-		os.Unsetenv("TEST_KEY_UNSET")
+		require.NoError(t, os.Unsetenv("TEST_KEY_UNSET"))
 		assert.Equal(t, "default", getEnvOrDefault("TEST_KEY_UNSET", "default"))
 	})
 }
