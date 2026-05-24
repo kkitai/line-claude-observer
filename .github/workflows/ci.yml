@@ -28,6 +28,7 @@ jobs:
 
     env:
       DATABASE_URL: postgres://postgres:postgres@localhost:5432/line_claude_observer_test?sslmode=disable
+      TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/line_claude_observer_test?sslmode=disable
       LINE_CHANNEL_SECRET: dummy_secret
       LINE_CHANNEL_ACCESS_TOKEN: dummy_token
       ANTHROPIC_API_KEY: dummy_key
