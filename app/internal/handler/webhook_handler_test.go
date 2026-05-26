@@ -21,12 +21,20 @@ import (
 	"github.com/kkitai/line-claude-observer/app/internal/domain"
 	"github.com/kkitai/line-claude-observer/app/internal/handler"
 	"github.com/kkitai/line-claude-observer/app/internal/repository"
+	"github.com/kkitai/line-claude-observer/app/internal/service"
 )
 
 const testChannelSecret = "test-channel-secret"
 const testChannelToken = "test-channel-token"
 
 // --- mock implementations ---
+
+type mockObserverService struct{ mock.Mock }
+
+func (m *mockObserverService) HandleOpinionCommand(ctx context.Context, groupID uuid.UUID, replyToken string) error {
+	args := m.Called(ctx, groupID, replyToken)
+	return args.Error(0)
+}
 
 type mockGroupRepo struct{ mock.Mock }
 
@@ -109,16 +117,17 @@ func newHandler(
 	groupRepo repository.GroupRepository,
 	msgRepo repository.MessageRepository,
 	lineClient *mockLineClient,
+	svc service.Service,
 	opinionCmd string,
 ) *handler.WebhookHandler {
 	bot, _ := linebot.New(testChannelSecret, testChannelToken)
-	return handler.NewWebhookHandler(bot, groupRepo, msgRepo, lineClient, opinionCmd)
+	return handler.NewWebhookHandler(bot, groupRepo, msgRepo, lineClient, svc, opinionCmd)
 }
 
 // --- tests ---
 
 func TestWebhookHandler_InvalidSignature(t *testing.T) {
-	h := newHandler(new(mockGroupRepo), new(mockMessageRepo), new(mockLineClient), "/opinion")
+	h := newHandler(new(mockGroupRepo), new(mockMessageRepo), new(mockLineClient), new(mockObserverService), "/opinion")
 	body := `{"destination":"U","events":[]}`
 	req := httptest.NewRequest(http.MethodPost, "/webhook", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
@@ -131,7 +140,7 @@ func TestWebhookHandler_InvalidSignature(t *testing.T) {
 }
 
 func TestWebhookHandler_EmptyEvents(t *testing.T) {
-	h := newHandler(new(mockGroupRepo), new(mockMessageRepo), new(mockLineClient), "/opinion")
+	h := newHandler(new(mockGroupRepo), new(mockMessageRepo), new(mockLineClient), new(mockObserverService), "/opinion")
 	body := webhookPayload([]map[string]interface{}{})
 	req := buildRequest(t, body)
 
@@ -157,7 +166,7 @@ func TestWebhookHandler_TextMessageEvent(t *testing.T) {
 			msg.Content == "Hello!"
 	})).Return(nil)
 
-	h := newHandler(groupRepo, msgRepo, lineClient, "/opinion")
+	h := newHandler(groupRepo, msgRepo, lineClient, new(mockObserverService), "/opinion")
 
 	ts := fmt.Sprintf("%d", time.Now().UnixMilli())
 	body := fmt.Sprintf(`{
@@ -185,6 +194,7 @@ func TestWebhookHandler_OpinionCommand(t *testing.T) {
 	groupRepo := new(mockGroupRepo)
 	msgRepo := new(mockMessageRepo)
 	lineClient := new(mockLineClient)
+	svc := new(mockObserverService)
 
 	group := testGroup()
 	groupRepo.On("FindOrCreate", mock.Anything, "C_GROUP_001", "group", "").Return(group, nil)
@@ -192,8 +202,9 @@ func TestWebhookHandler_OpinionCommand(t *testing.T) {
 	msgRepo.On("Save", mock.Anything, mock.MatchedBy(func(msg *domain.Message) bool {
 		return msg.Content == "/opinion" && msg.MessageType == "text"
 	})).Return(nil)
+	svc.On("HandleOpinionCommand", mock.Anything, group.ID, "reply-token-002").Return(nil)
 
-	h := newHandler(groupRepo, msgRepo, lineClient, "/opinion")
+	h := newHandler(groupRepo, msgRepo, lineClient, svc, "/opinion")
 
 	ts := fmt.Sprintf("%d", time.Now().UnixMilli())
 	body := fmt.Sprintf(`{
@@ -214,6 +225,7 @@ func TestWebhookHandler_OpinionCommand(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code)
 	groupRepo.AssertExpectations(t)
 	msgRepo.AssertExpectations(t)
+	svc.AssertExpectations(t)
 }
 
 func TestWebhookHandler_NonTextMessageEvent(t *testing.T) {
@@ -228,7 +240,7 @@ func TestWebhookHandler_NonTextMessageEvent(t *testing.T) {
 		return msg.MessageType == "sticker" && msg.Content == ""
 	})).Return(nil)
 
-	h := newHandler(groupRepo, msgRepo, lineClient, "/opinion")
+	h := newHandler(groupRepo, msgRepo, lineClient, new(mockObserverService), "/opinion")
 
 	ts := fmt.Sprintf("%d", time.Now().UnixMilli())
 	body := fmt.Sprintf(`{
@@ -260,7 +272,7 @@ func TestWebhookHandler_JoinEvent(t *testing.T) {
 	group := testGroup()
 	groupRepo.On("FindOrCreate", mock.Anything, "C_GROUP_002", "group", "").Return(group, nil)
 
-	h := newHandler(groupRepo, msgRepo, lineClient, "/opinion")
+	h := newHandler(groupRepo, msgRepo, lineClient, new(mockObserverService), "/opinion")
 
 	ts := fmt.Sprintf("%d", time.Now().UnixMilli())
 	body := fmt.Sprintf(`{
@@ -286,7 +298,7 @@ func TestWebhookHandler_LeaveEvent(t *testing.T) {
 	msgRepo := new(mockMessageRepo)
 	lineClient := new(mockLineClient)
 
-	h := newHandler(groupRepo, msgRepo, lineClient, "/opinion")
+	h := newHandler(groupRepo, msgRepo, lineClient, new(mockObserverService), "/opinion")
 
 	ts := fmt.Sprintf("%d", time.Now().UnixMilli())
 	body := fmt.Sprintf(`{
@@ -320,7 +332,7 @@ func TestWebhookHandler_GetDisplayNameFallback(t *testing.T) {
 		return msg.DisplayName == "U_DAVE" // userID as fallback
 	})).Return(nil)
 
-	h := newHandler(groupRepo, msgRepo, lineClient, "/opinion")
+	h := newHandler(groupRepo, msgRepo, lineClient, new(mockObserverService), "/opinion")
 
 	ts := fmt.Sprintf("%d", time.Now().UnixMilli())
 	body := fmt.Sprintf(`{
@@ -354,7 +366,7 @@ func TestWebhookHandler_ImageMessageEvent(t *testing.T) {
 		return msg.MessageType == "image" && msg.Content == ""
 	})).Return(nil)
 
-	h := newHandler(groupRepo, msgRepo, lineClient, "/opinion")
+	h := newHandler(groupRepo, msgRepo, lineClient, new(mockObserverService), "/opinion")
 
 	ts := fmt.Sprintf("%d", time.Now().UnixMilli())
 	body := fmt.Sprintf(`{
@@ -388,7 +400,7 @@ func TestWebhookHandler_LocationMessageEvent(t *testing.T) {
 		return msg.MessageType == "location" && msg.Content == "Tokyo Station"
 	})).Return(nil)
 
-	h := newHandler(groupRepo, msgRepo, lineClient, "/opinion")
+	h := newHandler(groupRepo, msgRepo, lineClient, new(mockObserverService), "/opinion")
 
 	ts := fmt.Sprintf("%d", time.Now().UnixMilli())
 	body := fmt.Sprintf(`{
@@ -429,7 +441,7 @@ func TestWebhookHandler_UserSourceMessage(t *testing.T) {
 		return msg.DisplayName == "U_HENRY" && msg.LineUserID == "U_HENRY"
 	})).Return(nil)
 
-	h := newHandler(groupRepo, msgRepo, lineClient, "/opinion")
+	h := newHandler(groupRepo, msgRepo, lineClient, new(mockObserverService), "/opinion")
 
 	ts := fmt.Sprintf("%d", time.Now().UnixMilli())
 	body := fmt.Sprintf(`{
@@ -466,7 +478,7 @@ func TestWebhookHandler_RoomMessageEvent(t *testing.T) {
 		return msg.DisplayName == "Eve" && msg.GroupID == group.ID
 	})).Return(nil)
 
-	h := newHandler(groupRepo, msgRepo, lineClient, "/opinion")
+	h := newHandler(groupRepo, msgRepo, lineClient, new(mockObserverService), "/opinion")
 
 	ts := fmt.Sprintf("%d", time.Now().UnixMilli())
 	body := fmt.Sprintf(`{

@@ -11,15 +11,17 @@ import (
 	"github.com/kkitai/line-claude-observer/app/internal/domain"
 	"github.com/kkitai/line-claude-observer/app/internal/line"
 	"github.com/kkitai/line-claude-observer/app/internal/repository"
+	"github.com/kkitai/line-claude-observer/app/internal/service"
 )
 
 // WebhookHandler handles incoming LINE webhook requests.
 type WebhookHandler struct {
-	bot         *linebot.Client
-	groupRepo   repository.GroupRepository
-	messageRepo repository.MessageRepository
-	lineClient  line.Client
-	opinionCmd  string
+	bot             *linebot.Client
+	groupRepo       repository.GroupRepository
+	messageRepo     repository.MessageRepository
+	lineClient      line.Client
+	observerService service.Service
+	opinionCmd      string
 }
 
 // NewWebhookHandler creates a new WebhookHandler.
@@ -28,14 +30,16 @@ func NewWebhookHandler(
 	groupRepo repository.GroupRepository,
 	messageRepo repository.MessageRepository,
 	lineClient line.Client,
+	observerService service.Service,
 	opinionCmd string,
 ) *WebhookHandler {
 	return &WebhookHandler{
-		bot:         bot,
-		groupRepo:   groupRepo,
-		messageRepo: messageRepo,
-		lineClient:  lineClient,
-		opinionCmd:  opinionCmd,
+		bot:             bot,
+		groupRepo:       groupRepo,
+		messageRepo:     messageRepo,
+		lineClient:      lineClient,
+		observerService: observerService,
+		opinionCmd:      opinionCmd,
 	}
 }
 
@@ -105,10 +109,11 @@ func (h *WebhookHandler) handleMessageEvent(ctx context.Context, event *linebot.
 		return err
 	}
 
-	// /opinion コマンド検知（Phase 5 で Observer Service を呼び出す）
+	// /opinion コマンドを検知したら Observer Service を呼び出す
 	if msgType == "text" && strings.HasPrefix(strings.TrimSpace(content), h.opinionCmd) {
-		log.Printf("[webhook] opinion command received: groupID=%s replyToken=%s", lineGroupID, event.ReplyToken)
-		// TODO: Phase 5 - h.observerService.HandleOpinionCommand(ctx, group.ID, event.ReplyToken)
+		if err := h.observerService.HandleOpinionCommand(ctx, group.ID, event.ReplyToken); err != nil {
+			log.Printf("[webhook] HandleOpinionCommand error: %v", err)
+		}
 	}
 
 	return nil
