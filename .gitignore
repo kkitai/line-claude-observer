@@ -1,0 +1,16 @@
+# 環境変数（シークレットを含む）
+.env
+
+# テストカバレッジ
+coverage*.out
+
+# Goビルド成果物
+/bin/
+*.exe
+
+# macOS
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
