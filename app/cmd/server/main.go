@@ -17,10 +17,12 @@ import (
 	"github.com/line/line-bot-sdk-go/v8/linebot"
 	"github.com/pressly/goose/v3"
 
+	"github.com/kkitai/line-claude-observer/app/internal/claude"
 	"github.com/kkitai/line-claude-observer/app/internal/config"
 	"github.com/kkitai/line-claude-observer/app/internal/handler"
 	"github.com/kkitai/line-claude-observer/app/internal/line"
 	"github.com/kkitai/line-claude-observer/app/internal/repository"
+	"github.com/kkitai/line-claude-observer/app/internal/service"
 )
 
 func main() {
@@ -61,8 +63,14 @@ func main() {
 	groupRepo := repository.NewGroupRepository(db)
 	messageRepo := repository.NewMessageRepository(db)
 
+	// Claude client
+	claudeClient := claude.NewClaudeClient(cfg.AnthropicAPIKey)
+
+	// Service
+	observerService := service.New(messageRepo, claudeClient, lineClient, cfg.ContextMessageCount)
+
 	// Handler
-	webhookHandler := handler.NewWebhookHandler(bot, groupRepo, messageRepo, lineClient, cfg.OpinionCommand)
+	webhookHandler := handler.NewWebhookHandler(bot, groupRepo, messageRepo, lineClient, observerService, cfg.OpinionCommand)
 
 	// Router
 	r := chi.NewRouter()
