@@ -108,7 +108,7 @@ func runMigrations(databaseURL string) error {
 	if err != nil {
 		return fmt.Errorf("goose open db: %w", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	migrationsDir := "app/db/migrations"
 	if err := goose.Up(db, migrationsDir); err != nil {

@@ -17,7 +17,6 @@ import (
 	"github.com/line/line-bot-sdk-go/v8/linebot"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
 
 	"github.com/kkitai/line-claude-observer/app/internal/domain"
 	"github.com/kkitai/line-claude-observer/app/internal/handler"
@@ -75,14 +74,6 @@ func lineSignature(secret, body string) string {
 	mac := hmac.New(sha256.New, []byte(secret))
 	mac.Write([]byte(body))
 	return base64.StdEncoding.EncodeToString(mac.Sum(nil))
-}
-
-// newTestBot creates a linebot.Client using the test channel secret.
-func newTestBot(t *testing.T) *linebot.Client {
-	t.Helper()
-	bot, err := linebot.New(testChannelSecret, testChannelToken)
-	require.NoError(t, err)
-	return bot
 }
 
 // testGroup returns a dummy domain.Group for testing.
