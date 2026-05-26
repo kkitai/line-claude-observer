@@ -3,9 +3,11 @@ module github.com/kkitai/line-claude-observer
 go 1.26.2
 
 require (
+	github.com/go-chi/chi/v5 v5.3.0
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.9.2
 	github.com/joho/godotenv v1.5.1
+	github.com/line/line-bot-sdk-go/v8 v8.20.0
 	github.com/pressly/goose/v3 v3.27.1
 	github.com/stretchr/testify v1.11.1
 )
@@ -20,6 +22,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rogpeppe/go-internal v1.6.1 // indirect
 	github.com/sethvargo/go-retry v0.3.0 // indirect
+	github.com/stretchr/objx v0.5.3 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/sync v0.20.0 // indirect
 	golang.org/x/text v0.36.0 // indirect
